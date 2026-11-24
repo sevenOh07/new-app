@@ -372,7 +372,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('quiz_result')), findsOneWidget);
-    expect(find.text('All correct!'), findsOneWidget);
+    expect(find.text('Good job! You passed!'), findsOneWidget);
+    expect(find.byKey(const Key('quiz_result_happy')), findsOneWidget);
     expect(find.text('You got 2 out of 2 right.'), findsOneWidget);
     expect(find.byKey(const Key('quiz_done_button')), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -405,7 +406,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('quiz_result')), findsOneWidget);
-    expect(find.text('Quiz complete!'), findsOneWidget);
+    expect(find.text("It's not the end! try again!"), findsOneWidget);
+    expect(find.byKey(const Key('quiz_result_sad')), findsOneWidget);
     expect(find.text('You got 0 out of 2 right.'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -885,6 +887,15 @@ void main() {
     expect(find.byKey(const Key('search_folder_1')), findsNothing);
     expect(find.text('Math Lessons'), findsOneWidget);
 
+    // Folder results carry no thumbnail.
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('search_folder_0')),
+        matching: find.byType(Image),
+      ),
+      findsNothing,
+    );
+
     // The front of a lesson matches.
     await tester.enterText(find.byKey(const Key('search_field')), '2 + 2');
     await tester.pumpAndSettle();
@@ -930,6 +941,86 @@ void main() {
     expect(find.byKey(const Key('search_screen')), findsNothing);
     expect(find.byKey(const Key('flashcards_option')), findsOneWidget);
     expect(find.byKey(const Key('quiz_option')), findsOneWidget);
+  });
+
+  testWidgets('a folder can be deleted from its options', (tester) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await pumpApp(tester);
+    await createFolder(tester, 'Math Lessons');
+    await addLesson(tester, front: 'Front one', back: 'Back one');
+
+    await openFolderOptions(tester, 'Math Lessons');
+    await tester.tap(find.byKey(const Key('delete_folder_option')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Delete Folder'), findsOneWidget);
+    expect(find.text('Delete "Math Lessons" and its lessons?'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('confirm_delete_folder')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Math Lessons'), findsNothing);
+    expect(find.byKey(const Key('folder_list')), findsNothing);
+    expect(find.text("There's nothing here..."), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('cancelling the delete keeps the folder', (tester) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await pumpApp(tester);
+    await createFolder(tester, 'Math Lessons');
+
+    await openFolderOptions(tester, 'Math Lessons');
+    await tester.tap(find.byKey(const Key('delete_folder_option')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('cancel_delete_folder')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Math Lessons'), findsOneWidget);
+    expect(find.byKey(const Key('folder_list')), findsOneWidget);
+  });
+
+  testWidgets('lessons can be deleted from the manage screen', (tester) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await pumpApp(tester);
+    await createFolder(tester, 'Math Lessons');
+    await addLesson(tester, front: 'Front one', back: 'Back one');
+    await addLesson(tester, front: 'Front two', back: 'Back two');
+
+    await openFolderOptions(tester, 'Math Lessons');
+    await tester.tap(find.byKey(const Key('manage_lessons_option')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('manage_lessons_screen')), findsOneWidget);
+    expect(find.text('Front one'), findsOneWidget);
+    expect(find.text('Front two'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('delete_lesson_0')));
+    await tester.pumpAndSettle();
+    expect(find.text('Delete Lesson'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('confirm_delete_lesson')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Front one'), findsNothing);
+    expect(find.text('Front two'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('delete_lesson_0')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('confirm_delete_lesson')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('manage_lessons_empty')), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('the search screen fits every screen size', (tester) async {

@@ -24,8 +24,6 @@ class QuizScreen extends StatefulWidget {
 }
 
 class _QuizScreenState extends State<QuizScreen> {
-  static const Color _successGreen = Color.fromARGB(255, 191, 255, 43);
-
   static const Color _ink = Color(0xFF2B2320);
   static const Color _softInk = Color(0xFF4B3830);
   static const Color _rightGreen = Color(0xFF4F8A2F);
@@ -199,7 +197,7 @@ class _QuizScreenState extends State<QuizScreen> {
                           Expanded(
                             child: Center(
                               child: _isDone
-                                  ? _buildResultCard(cardWidth, cardHeight)
+                                  ? _buildResult(cardWidth, cardHeight)
                                   : _buildQuestionCard(cardWidth, cardHeight),
                             ),
                           ),
@@ -478,53 +476,58 @@ class _QuizScreenState extends State<QuizScreen> {
     );
   }
 
-  /// The score card shown after the final question.
-  Widget _buildResultCard(double width, double height) {
-    final allRight =
-        _questions.isNotEmpty && _correctCount == _questions.length;
-    final title = allRight ? 'All correct!' : 'Quiz complete!';
+  /// The score shown after the final question.
+  Widget _buildResult(double width, double height) {
+    // A score of 70% or more counts as passing, and earns a happy dance.
+    final passed =
+        _questions.isNotEmpty && _correctCount / _questions.length >= 0.7;
+    final message = passed
+        ? 'Good job! You passed!'
+        : "It's not the end! try again!";
+    final celebration = passed
+        ? 'assets/images/dance_dance.gif'
+        : 'assets/images/chiikawa_sad.gif';
 
-    return Container(
+    return SizedBox(
       key: const Key('quiz_result'),
       width: width,
       height: height,
-      padding: EdgeInsets.all(width * 0.10),
-      decoration: BoxDecoration(
-        color: _successGreen,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white, width: 3),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
       child: Center(
         child: SingleChildScrollView(
+          padding: EdgeInsets.symmetric(horizontal: width * 0.05),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                title,
+                message,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontFamily: 'Doodle_Head',
-                  fontSize: math.max(28.0, math.min(46.0, width * 0.12)),
-                  color: Colors.white,
-                  height: 1,
+                  fontSize: math.max(24.0, math.min(42.0, width * 0.1)),
+                  color: _softInk,
+                  height: 1.1,
                 ),
               ),
-              SizedBox(height: height * 0.05),
+              SizedBox(height: height * 0.04),
               Text(
                 'You got $_correctCount out of ${_questions.length} right.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontFamily: 'Doodle_Head',
                   fontSize: math.max(16.0, math.min(24.0, width * 0.055)),
-                  color: Colors.white,
+                  color: _softInk,
                   height: 1.2,
+                ),
+              ),
+              SizedBox(height: height * 0.02),
+              SizedBox(
+                key: Key(passed ? 'quiz_result_happy' : 'quiz_result_sad'),
+                height: math.max(56.0, height * 0.42),
+                width: double.infinity,
+                child: Image.asset(
+                  celebration,
+                  fit: BoxFit.contain,
+                  filterQuality: FilterQuality.medium,
                 ),
               ),
             ],

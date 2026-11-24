@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 
 import 'flashcard.dart';
 import '../models/study_folder.dart';
+import '../widgets/confirm_dialog.dart';
 import 'add_lesson_screen.dart';
+import 'manage_lessons_screen.dart';
 import 'quiz.dart';
 import 'search_screen.dart';
 
@@ -159,23 +161,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// Asks how the member wants to study a folder, then opens that mode.
   Future<void> _openFolder(StudyFolder folder) async {
-    if (folder.lessons.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('This folder has no lessons yet!'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-      return;
-    }
-
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
       barrierColor: Colors.transparent,
       elevation: 0,
       builder: (sheetContext) {
-        return Padding(
+        return SingleChildScrollView(
           padding: EdgeInsets.only(
             left: 24,
             right: 24,
@@ -183,6 +175,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           child: _FolderOptionsCard(
             folderName: folder.name,
+            hasLessons: folder.lessons.isNotEmpty,
             onFlashcards: () {
               Navigator.of(sheetContext).pop();
               _openFlashcards(folder);
@@ -190,6 +183,14 @@ class _HomeScreenState extends State<HomeScreen> {
             onQuiz: () {
               Navigator.of(sheetContext).pop();
               _openQuiz(folder);
+            },
+            onManageLessons: () {
+              Navigator.of(sheetContext).pop();
+              _openManageLessons(folder);
+            },
+            onDeleteFolder: () {
+              Navigator.of(sheetContext).pop();
+              _confirmDeleteFolder(folder);
             },
           ),
         );
@@ -211,6 +212,43 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     await _openFolder(folder);
+  }
+
+  /// Opens the list of a folder's lessons, where they can be deleted.
+  Future<void> _openManageLessons(StudyFolder folder) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (context) =>
+            ManageLessonsScreen(folderName: folder.name, lessons: folder.lessons),
+      ),
+    );
+  }
+
+  /// Asks before removing a folder and all of its lessons.
+  Future<void> _confirmDeleteFolder(StudyFolder folder) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.25),
+      builder: (dialogContext) => ConfirmDialog(
+        title: 'Delete Folder',
+        message: 'Delete "${folder.name}" and its lessons?',
+        cancelKey: const Key('cancel_delete_folder'),
+        confirmKey: const Key('confirm_delete_folder'),
+      ),
+    );
+
+    if (!mounted || shouldDelete != true) {
+      return;
+    }
+
+    setState(() => _folders.remove(folder));
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Folder deleted!'),
+        duration: Duration(seconds: 2),
+      ),
+    );
   }
 
   /// Opens the flip cards for a folder.
@@ -530,17 +568,24 @@ class _FolderTile extends StatelessWidget {
   }
 }
 
-/// The pink panel with the two study modes, shown when a folder is tapped.
+/// The pink panel with the study modes and folder actions, shown when a folder
+/// is tapped.
 class _FolderOptionsCard extends StatelessWidget {
   const _FolderOptionsCard({
     required this.folderName,
+    required this.hasLessons,
     required this.onFlashcards,
     required this.onQuiz,
+    required this.onManageLessons,
+    required this.onDeleteFolder,
   });
 
   final String folderName;
+  final bool hasLessons;
   final VoidCallback onFlashcards;
   final VoidCallback onQuiz;
+  final VoidCallback onManageLessons;
+  final VoidCallback onDeleteFolder;
 
   @override
   Widget build(BuildContext context) {
@@ -579,20 +624,55 @@ class _FolderOptionsCard extends StatelessWidget {
             ),
           ),
           SizedBox(height: padding),
+          if (hasLessons) ...[
+            _OptionButton(
+              key: const Key('flashcards_option'),
+              label: 'Flash Cards',
+              height: buttonHeight,
+              fontSize: fontSize,
+              onTap: onFlashcards,
+            ),
+            SizedBox(height: padding),
+            _OptionButton(
+              key: const Key('quiz_option'),
+              label: 'Quiz',
+              height: buttonHeight,
+              fontSize: fontSize,
+              onTap: onQuiz,
+            ),
+          ] else
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: padding * 0.5),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  'This folder has no lessons yet!',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: 'Doodle_Head',
+                    fontSize: math.max(18.0, math.min(24.0, width * 0.055)),
+                    color: Colors.white,
+                    height: 1.2,
+                  ),
+                ),
+              ),
+            ),
+          SizedBox(height: padding),
           _OptionButton(
-            key: const Key('flashcards_option'),
-            label: 'Flash Cards',
+            key: const Key('manage_lessons_option'),
+            label: 'Manage Lessons',
             height: buttonHeight,
             fontSize: fontSize,
-            onTap: onFlashcards,
+            onTap: onManageLessons,
           ),
           SizedBox(height: padding),
           _OptionButton(
-            key: const Key('quiz_option'),
-            label: 'Quiz',
+            key: const Key('delete_folder_option'),
+            label: 'Delete Folder',
             height: buttonHeight,
             fontSize: fontSize,
-            onTap: onQuiz,
+            fillColor: const Color(0xFFC0504D),
+            onTap: onDeleteFolder,
           ),
         ],
       ),
@@ -659,12 +739,14 @@ class _OptionButton extends StatelessWidget {
     required this.height,
     required this.fontSize,
     required this.onTap,
+    this.fillColor,
   });
 
   final String label;
   final double height;
   final double fontSize;
   final VoidCallback onTap;
+  final Color? fillColor;
 
   @override
   Widget build(BuildContext context) {
@@ -675,7 +757,7 @@ class _OptionButton extends StatelessWidget {
         onPressed: onTap,
         style: OutlinedButton.styleFrom(
           foregroundColor: Colors.white,
-          backgroundColor: Colors.white.withValues(alpha: 0.08),
+          backgroundColor: fillColor ?? Colors.white.withValues(alpha: 0.08),
           side: const BorderSide(color: Colors.white, width: 3),
           shape: const StadiumBorder(),
           padding: EdgeInsets.zero,

@@ -312,11 +312,6 @@ class _SearchScreenState extends State<SearchScreen> {
               for (final folderIndex in folderHits) ...[
                 _ResultTile(
                   key: ValueKey('search_folder_$folderIndex'),
-                  leading: Image.asset(
-                    'assets/images/folder_chiikawa.png',
-                    width: 56,
-                    fit: BoxFit.contain,
-                  ),
                   title: widget.folders[folderIndex].name,
                   subtitle: _lessonCountLabel(
                     widget.folders[folderIndex].lessons.length,
@@ -379,17 +374,18 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-/// One tappable search result: an icon or thumbnail, a title, and a subtitle.
+/// One tappable search result: an optional icon or thumbnail, a title, and a
+/// subtitle.
 class _ResultTile extends StatelessWidget {
   const _ResultTile({
     super.key,
-    required this.leading,
+    this.leading,
     required this.title,
     required this.subtitle,
     required this.onTap,
   });
 
-  final Widget leading;
+  final Widget? leading;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
@@ -413,8 +409,10 @@ class _ResultTile extends StatelessWidget {
           ),
           child: Row(
             children: [
-              SizedBox(width: 56, child: Center(child: leading)),
-              const SizedBox(width: 12),
+              if (leading != null) ...[
+                SizedBox(width: 56, child: Center(child: leading)),
+                const SizedBox(width: 12),
+              ],
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
