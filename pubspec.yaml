@@ -34,6 +34,7 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+  file_picker: ^13.4.1
 
 dev_dependencies:
   flutter_test:
@@ -59,6 +60,13 @@ flutter:
     - assets/images/menu.png
     - assets/images/plus_sign.png
     - assets/images/search.png
+    - assets/images/loading_ch.png
+    - assets/images/chiikawa_all_loading.gif
+    - assets/images/folder_chiikawa.png
+    - assets/images/choices_note.png
+    - assets/images/clipboard2_notebook.png
+    - assets/images/back_red.png
+    - assets/images/front_green.png
     
 
 
