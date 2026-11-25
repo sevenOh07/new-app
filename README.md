@@ -2,7 +2,7 @@
 
 A cozy little Flutter app for **reviewing notes** — turn your notes into flashcards, flip through them, and test yourself with quizzes.
 
-The interface is inspired by Chiikawa: a grassy background, doodle-style typography, and a confused little Chiikawa to keep you company while you study.
+The interface is inspired by Chiikawa, so if you love Chiikawa I think you'll like this too
 
 ---
 
@@ -49,11 +49,6 @@ Everything is centered on short, snackable review sessions rather than long stud
 - Use them to test recall instead of simply re-reading cards.
 - Intended to give a quick score or feedback loop so you know what to review next.
 
-### Note entry
-
-- Notes are added from the front of the app.
-- The input form has two fields: **Title (front)** and **Description (back)**.
-- No separate "editor" mode is needed — adding a note is the same as creating a flashcard.
 
 ## How it works
 
