@@ -14,10 +14,14 @@ class QuizScreen extends StatefulWidget {
     super.key,
     required this.folderName,
     required this.lessons,
+    this.onAnswered,
   });
 
   final String folderName;
   final List<Lesson> lessons;
+
+  /// Called after an answer, so the Status drawer can track progress.
+  final void Function(Lesson lesson, bool correct)? onAnswered;
 
   @override
   State<QuizScreen> createState() => _QuizScreenState();
@@ -78,9 +82,12 @@ class _QuizScreenState extends State<QuizScreen> {
       return;
     }
 
+    final correct = option == _current.backText;
+    widget.onAnswered?.call(_current, correct);
+
     setState(() {
       _selected = option;
-      if (option == _current.backText) {
+      if (correct) {
         _correctCount++;
       }
     });

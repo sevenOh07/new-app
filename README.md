@@ -133,34 +133,6 @@ flutter analyze   # static analysis
 flutter test      # widget/unit tests
 ```
 
-## Project structure
-
-```
-chiikawa_app/
-├── lib/
-│   └── main.dart              # App entry point and current home screen
-├── assets/
-│   ├── fonts/
-│   │   ├── Doodle_Head.ttf
-│   │   └── Mix Doodle.ttf
-│   └── images/
-│       ├── grassy_background.png
-│       ├── chiikawa_confused.png
-│       ├── loading_ch.png
-│       ├── menu.png
-│       ├── plus_sign.png
-│       └── search.png
-├── test/
-│   └── widget_test.dart       # Still the default counter test
-├── android/                   # Android host project
-├── web/                       # Web host project
-├── windows/                   # Windows host project
-├── pubspec.yaml               # Dependencies, assets, fonts
-└── docs/
-    ├── USER_GUIDE.md          # How to use the app
-    └── DEVELOPER_GUIDE.md     # Architecture and implementation notes
-```
-
 ## Data model
 
 The minimum information needed for a flashcard is:

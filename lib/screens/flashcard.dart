@@ -15,10 +15,14 @@ class FlashcardScreen extends StatefulWidget {
     super.key,
     required this.folderName,
     required this.lessons,
+    this.onReviewed,
   });
 
   final String folderName;
   final List<Lesson> lessons;
+
+  /// Called when a card is marked, so the Status drawer can track progress.
+  final void Function(Lesson lesson, bool remembered)? onReviewed;
 
   @override
   State<FlashcardScreen> createState() => _FlashcardScreenState();
@@ -58,8 +62,11 @@ class _FlashcardScreenState extends State<FlashcardScreen> {
       return;
     }
 
+    final card = _queue.first;
+    widget.onReviewed?.call(card, remembered);
+
     setState(() {
-      final card = _queue.removeAt(0);
+      _queue.removeAt(0);
       if (remembered) {
         _knownCount++;
       } else {

@@ -7,7 +7,9 @@ import 'package:chiikawa_app/screens/quiz.dart';
 import 'package:chiikawa_app/screens/search_screen.dart';
 import 'package:chiikawa_app/main.dart';
 import 'package:chiikawa_app/models/lesson.dart';
+import 'package:chiikawa_app/models/lesson_progress.dart';
 import 'package:chiikawa_app/models/study_folder.dart';
+import 'package:chiikawa_app/widgets/status_drawer.dart';
 
 /// Widget tests draw text with a placeholder font unless the real one is
 /// loaded, which would make layout measurements meaningless. Load Doodle_Head
@@ -16,6 +18,9 @@ Future<void> _loadFonts() async {
   final loader = FontLoader('Doodle_Head')
     ..addFont(rootBundle.load('assets/fonts/Doodle_Head.ttf'));
   await loader.load();
+  final mixLoader = FontLoader('Mix Doodle')
+    ..addFont(rootBundle.load('assets/fonts/Mix Doodle.ttf'));
+  await mixLoader.load();
 }
 
 /// Boots the app and waits for the loading screen to hand over to the home
@@ -838,16 +843,134 @@ void main() {
     expect(lessons.bottom, lessThanOrEqualTo(480));
   });
 
-  testWidgets('tapping the menu button shows feedback', (tester) async {
+  testWidgets('the menu button opens the Status side menu', (tester) async {
     tester.view.physicalSize = const Size(400, 800);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
     await pumpApp(tester);
     await tester.tap(find.byKey(const Key('menu_button')));
-    await tester.pump();
+    await tester.pumpAndSettle();
 
-    expect(find.byType(SnackBar), findsOneWidget);
+    expect(find.byKey(const Key('status_drawer')), findsOneWidget);
+    expect(find.byKey(const Key('status_title')), findsOneWidget);
+    expect(find.text('Status'), findsOneWidget);
+    expect(find.text('Deck Score:'), findsOneWidget);
+    expect(find.text('Total Study Time:'), findsOneWidget);
+    expect(find.byKey(const Key('status_score')), findsOneWidget);
+    expect(find.byKey(const Key('status_study_time')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.byKey(const Key('status_close_button')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('status_drawer')), findsNothing);
+  });
+
+  testWidgets('Status lists cards and opens one for study', (tester) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await pumpApp(tester);
+    await createFolder(tester, 'Math Lessons');
+    await addLesson(tester, front: 'Front one', back: 'Back one');
+
+    await tester.tap(find.byKey(const Key('menu_button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Front one'), findsOneWidget);
+    expect(find.byKey(const Key('status_filter_new')), findsOneWidget);
+
+    await tester.tap(find.text('Front one'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('flashcard_screen')), findsOneWidget);
+    expect(find.text('Front one'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Status reflects a card marked good', (tester) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await pumpApp(tester);
+    await createFolder(tester, 'Math Lessons');
+    await addLesson(tester, front: 'Front one', back: 'Back one');
+
+    await openFlashcards(tester, 'Math Lessons');
+    await tester.tap(find.byKey(const Key('flashcard_card')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('good_button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('flashcard_done_button')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('menu_button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Review Cards (1) - 100%'), findsOneWidget);
+    expect(find.byKey(const Key('status_filter_review')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the Status drawer fits every screen size', (tester) async {
+    await _loadFonts();
+
+    const sizes = [
+      Size(320, 480),
+      Size(400, 800),
+      Size(800, 600),
+      Size(1920, 1080),
+      Size(1200, 300),
+    ];
+
+    for (final size in sizes) {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final folder = StudyFolder('Math Lessons');
+      final lessons = [
+        const Lesson(frontText: 'One plus one', backText: 'Two'),
+        const Lesson(frontText: 'Two plus two', backText: 'Four'),
+        const Lesson(frontText: 'Three plus three', backText: 'Six'),
+      ];
+      folder.lessons.addAll(lessons);
+      final progress = <Lesson, LessonProgress>{
+        lessons[1]: LessonProgress()..record(correct: true),
+        lessons[2]: LessonProgress()..record(correct: false),
+      };
+
+      final key = GlobalKey<ScaffoldState>();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            key: key,
+            drawer: StatusDrawer(
+              folders: [folder],
+              progress: progress,
+              totalStudyTime: const Duration(minutes: 20),
+              todayStudyTime: const Duration(minutes: 5),
+              onViewCard: (_, _) {},
+            ),
+            body: const SizedBox.expand(),
+          ),
+        ),
+      );
+
+      key.currentState!.openDrawer();
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+
+      final drawer = tester.getRect(find.byKey(const Key('status_drawer')));
+      expect(drawer.left, greaterThanOrEqualTo(0));
+      expect(drawer.right, lessThanOrEqualTo(size.width));
+      expect(drawer.bottom, lessThanOrEqualTo(size.height));
+      expect(find.text('Deck Score:'), findsOneWidget);
+    }
   });
 
   testWidgets('the search button opens the search screen', (tester) async {

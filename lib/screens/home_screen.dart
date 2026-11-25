@@ -3,8 +3,11 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import 'flashcard.dart';
+import '../models/lesson.dart';
+import '../models/lesson_progress.dart';
 import '../models/study_folder.dart';
 import '../widgets/confirm_dialog.dart';
+import '../widgets/status_drawer.dart';
 import 'add_lesson_screen.dart';
 import 'manage_lessons_screen.dart';
 import 'quiz.dart';
@@ -65,13 +68,37 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Folders created in this session, in the order they were added.
   final List<StudyFolder> _folders = <StudyFolder>[];
 
-  void _showComingSoon(BuildContext context, String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$feature is coming soon!'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+  /// Opens and closes the Status side menu.
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  /// Study history for each card, shown in the Status side menu.
+  final Map<Lesson, LessonProgress> _progress = <Lesson, LessonProgress>{};
+
+  /// Total time spent in flashcard and quiz sessions.
+  Duration _studyTime = Duration.zero;
+
+  /// The part of [_studyTime] earned today.
+  Duration _todayStudyTime = Duration.zero;
+
+  /// The day [_todayStudyTime] belongs to.
+  DateTime _studyDay = DateUtils.dateOnly(DateTime.now());
+
+  LessonProgress _progressFor(Lesson lesson) {
+    return _progress.putIfAbsent(lesson, () => LessonProgress());
+  }
+
+  void _recordReview(Lesson lesson, bool correct) {
+    _progressFor(lesson).record(correct: correct);
+  }
+
+  void _addStudyTime(Duration elapsed) {
+    final today = DateUtils.dateOnly(DateTime.now());
+    if (!DateUtils.isSameDay(today, _studyDay)) {
+      _studyDay = today;
+      _todayStudyTime = Duration.zero;
+    }
+    _studyTime += elapsed;
+    _todayStudyTime += elapsed;
   }
 
   /// Opens the pink panel with the two add options: Create Folder and
@@ -218,8 +245,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _openManageLessons(StudyFolder folder) async {
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (context) =>
-            ManageLessonsScreen(folderName: folder.name, lessons: folder.lessons),
+        builder: (context) => ManageLessonsScreen(
+          folderName: folder.name,
+          lessons: folder.lessons,
+        ),
       ),
     );
   }
@@ -241,7 +270,12 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    setState(() => _folders.remove(folder));
+    setState(() {
+      _folders.remove(folder);
+      for (final lesson in folder.lessons) {
+        _progress.remove(lesson);
+      }
+    });
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -251,14 +285,26 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Opens the flip cards for a folder.
-  Future<void> _openFlashcards(StudyFolder folder) async {
+  /// Opens the flip cards for a folder. Pass [lessons] to study a single card.
+  Future<void> _openFlashcards(
+    StudyFolder folder, {
+    List<Lesson>? lessons,
+  }) async {
+    final started = DateTime.now();
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (context) =>
-            FlashcardScreen(folderName: folder.name, lessons: folder.lessons),
+        builder: (context) => FlashcardScreen(
+          folderName: folder.name,
+          lessons: lessons ?? folder.lessons,
+          onReviewed: _recordReview,
+        ),
       ),
     );
+
+    if (!mounted) {
+      return;
+    }
+    setState(() => _addStudyTime(DateTime.now().difference(started)));
   }
 
   /// Opens the multiple-choice quiz for a folder. A quiz needs at least two
@@ -274,18 +320,40 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
+    final started = DateTime.now();
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (context) =>
-            QuizScreen(folderName: folder.name, lessons: folder.lessons),
+        builder: (context) => QuizScreen(
+          folderName: folder.name,
+          lessons: folder.lessons,
+          onAnswered: _recordReview,
+        ),
       ),
     );
+
+    if (!mounted) {
+      return;
+    }
+    setState(() => _addStudyTime(DateTime.now().difference(started)));
+  }
+
+  /// Closes the Status menu and studies one card from it.
+  void _viewCard(StudyFolder folder, Lesson lesson) {
+    _openFlashcards(folder, lessons: <Lesson>[lesson]);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: Colors.white,
+      drawer: StatusDrawer(
+        folders: _folders,
+        progress: _progress,
+        totalStudyTime: _studyTime,
+        todayStudyTime: _todayStudyTime,
+        onViewCard: _viewCard,
+      ),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final width = constraints.maxWidth;
@@ -412,8 +480,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   key: const Key('menu_button'),
                   asset: 'assets/images/menu.png',
                   height: buttonHeight,
-                  tooltip: 'Menu',
-                  onTap: () => _showComingSoon(context, 'The menu'),
+                  tooltip: 'Status',
+                  onTap: () => _scaffoldKey.currentState?.openDrawer(),
                 ),
               ),
 
